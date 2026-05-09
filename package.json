@@ -1,0 +1,17 @@
+{
+  "name": "anime-api",
+  "version": "1.0.0",
+  "description": "REST API for Anime App — One Piece, Saint Seiya, Hunter x Hunter",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "swagger-ui-dist": "^5.32.5"
+  }
+}
