@@ -6,7 +6,22 @@
  * Exported as a plain JS object so it can be serialised to JSON on demand
  * without any extra build step.
  */
-const spec = {
+/**
+ * Builds the OpenAPI spec with the correct server URL derived from the
+ * incoming request so Swagger UI "Try it out" always targets the right host.
+ *
+ * @param {string} [baseUrl] - e.g. 'https://my-app.onrender.com'
+ */
+function buildSpec(baseUrl) {
+  const servers = baseUrl
+    ? [{ url: baseUrl, description: 'Servidor actual' }]
+    : [{ url: 'http://localhost:3000', description: 'Desarrollo local' }];
+
+  return buildSpecWithServers(servers);
+}
+
+function buildSpecWithServers(servers) {
+  return {
   openapi: '3.0.3',
   info: {
     title: 'Anime API',
@@ -26,16 +41,7 @@ almacenados en una base de datos Supabase (PostgreSQL).
       name: 'Anime App',
     },
   },
-  servers: [
-    {
-      url: 'http://localhost:3000',
-      description: 'Desarrollo local',
-    },
-    {
-      url: 'https://anime-api.onrender.com',
-      description: 'Producción (Render) — reemplaza con tu URL real',
-    },
-  ],
+  servers,
   tags: [
     { name: 'Health',         description: 'Estado del servidor y la base de datos' },
     { name: 'Series',         description: 'Listado de series disponibles' },
@@ -414,6 +420,10 @@ almacenados en una base de datos Supabase (PostgreSQL).
       },
     },
   },
-};
+  };  // end of returned spec object
+}     // end of buildSpecWithServers
 
-module.exports = { spec };
+// Legacy export kept for any existing imports
+const spec = buildSpec();
+
+module.exports = { spec, buildSpec };

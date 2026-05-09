@@ -3,7 +3,7 @@
 
 const fs   = require('fs');
 const path = require('path');
-const { spec }     = require('../docs/openapi');
+const { buildSpec } = require('../docs/openapi');
 const { sendJSON } = require('../utils/response');
 
 // Resolve the swagger-ui-dist folder once at startup
@@ -130,9 +130,12 @@ function docsRouter(req, res) {
     return true;
   }
 
-  // Raw OpenAPI JSON spec
+  // Raw OpenAPI JSON spec — built with the real host so Swagger UI targets the correct server
   if (pathname === '/docs/openapi.json') {
-    sendJSON(res, 200, spec);
+    const proto = req.headers['x-forwarded-proto'] || 'https';
+    const host  = req.headers['x-forwarded-host'] || req.headers['host'] || 'localhost:3000';
+    const baseUrl = `${proto}://${host}`;
+    sendJSON(res, 200, buildSpec(baseUrl));
     return true;
   }
 
