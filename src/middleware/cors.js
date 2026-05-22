@@ -19,12 +19,14 @@ function applyCors(req, res) {
   const allow =
     ALLOWED_ORIGINS.includes('*') || ALLOWED_ORIGINS.includes(origin)
       ? origin || '*'
-      : ALLOWED_ORIGINS[0]; // fallback to first allowed origin
+      : ALLOWED_ORIGINS[0];
 
   res.setHeader('Access-Control-Allow-Origin', allow);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Max-Age', '86400'); // 24 h preflight cache
+  // POST agregado para los endpoints admin
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  // x-admin-key agregado para autenticación de admin
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-key');
+  res.setHeader('Access-Control-Max-Age', '86400');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);

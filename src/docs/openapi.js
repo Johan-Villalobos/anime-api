@@ -2,11 +2,6 @@
 'use strict';
 
 /**
- * OpenAPI 3.0.3 specification for the Anime API.
- * Exported as a plain JS object so it can be serialised to JSON on demand
- * without any extra build step.
- */
-/**
  * Builds the OpenAPI spec with the correct server URL derived from the
  * incoming request so Swagger UI "Try it out" always targets the right host.
  *
@@ -25,21 +20,22 @@ function buildSpecWithServers(servers) {
   openapi: '3.0.3',
   info: {
     title: 'Anime API',
-    version: '1.0.0',
+    version: '1.1.0',
     description: `
 REST API para la **Anime App** construida con Node.js puro (sin frameworks).
 
 Permite buscar personajes de **One Piece**, **Saint Seiya** y **Hunter x Hunter**
 almacenados en una base de datos Supabase (PostgreSQL).
 
-### Notas
+### Endpoints de lectura
 - La búsqueda por \`name\` es **parcial** y **case-insensitive** (usa \`ILIKE\`).
 - Los campos \`images\` retornan un array de URLs; puede ser \`[]\` si aún no se han cargado imágenes.
-- Todos los endpoints son de solo lectura (\`GET\`).
+
+### Endpoints de administración (/api/admin/*)
+- Requieren el header \`x-admin-key\` con el valor configurado en la variable de entorno \`ADMIN_API_KEY\`.
+- Permiten crear nuevas series y personajes con sus imágenes.
     `.trim(),
-    contact: {
-      name: 'Anime App',
-    },
+    contact: { name: 'Anime App' },
   },
   servers,
   tags: [
@@ -48,6 +44,7 @@ almacenados en una base de datos Supabase (PostgreSQL).
     { name: 'One Piece',      description: 'Personajes de One Piece' },
     { name: 'Saint Seiya',    description: 'Personajes de Saint Seiya' },
     { name: 'Hunter x Hunter',description: 'Personajes de Hunter x Hunter' },
+    { name: 'Admin',          description: 'Gestión de contenido — requiere x-admin-key' },
   ],
   paths: {
 
@@ -66,13 +63,7 @@ almacenados en una base de datos Supabase (PostgreSQL).
                 schema: { $ref: '#/components/schemas/HealthResponse' },
                 example: {
                   success: true,
-                  data: {
-                    status: 'ok',
-                    db: 'connected',
-                    series: 3,
-                    uptime: 142,
-                    ts: '2025-01-15T10:30:00.000Z',
-                  },
+                  data: { status: 'ok', db: 'connected', series: 3, uptime: 142, ts: '2025-01-15T10:30:00.000Z' },
                 },
               },
             },
@@ -87,7 +78,6 @@ almacenados en una base de datos Supabase (PostgreSQL).
       get: {
         tags: ['Series'],
         summary: 'Listar todas las series',
-        description: 'Retorna el listado completo de series disponibles con su metadata.',
         operationId: 'listSeries',
         responses: {
           200: {
@@ -97,22 +87,7 @@ almacenados en una base de datos Supabase (PostgreSQL).
                 schema: {
                   allOf: [
                     { $ref: '#/components/schemas/SuccessEnvelope' },
-                    {
-                      properties: {
-                        data: {
-                          type: 'array',
-                          items: { $ref: '#/components/schemas/Series' },
-                        },
-                      },
-                    },
-                  ],
-                },
-                example: {
-                  success: true,
-                  data: [
-                    { id: 1, slug: 'hunter_x_hunter', name: 'Hunter x Hunter', description: 'El mundo de los Hunters…', created_at: '2025-01-01T00:00:00Z' },
-                    { id: 2, slug: 'one_piece',       name: 'One Piece',       description: 'Las aventuras de Luffy…', created_at: '2025-01-01T00:00:00Z' },
-                    { id: 3, slug: 'saint_seiya',     name: 'Saint Seiya',     description: 'Los Caballeros del Zodiaco…', created_at: '2025-01-01T00:00:00Z' },
+                    { properties: { data: { type: 'array', items: { $ref: '#/components/schemas/Series' } } } },
                   ],
                 },
               },
@@ -128,33 +103,10 @@ almacenados en una base de datos Supabase (PostgreSQL).
       get: {
         tags: ['One Piece'],
         summary: 'Buscar personaje por nombre',
-        description: 'Busca un personaje de One Piece por nombre. La búsqueda es parcial y no distingue mayúsculas.',
         operationId: 'searchOnePiece',
         parameters: [{ $ref: '#/components/parameters/nameQuery' }],
         responses: {
-          200: {
-            description: 'Personaje encontrado',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/CharacterResponse' },
-                example: {
-                  success: true,
-                  data: {
-                    id: 1,
-                    series_slug: 'one_piece',
-                    series_name: 'One Piece',
-                    name: 'Monkey D. Luffy',
-                    age: '19',
-                    category: 'Capitán — Piratas Sombrero de Paja',
-                    power: 'Fruta del Diablo: Gomu Gomu no Mi (Hito Hito no Mi, Model: Nika)',
-                    technique: 'Gear Fifth / Gomu Gomu no Gigant',
-                    description: 'El futuro Rey de los Piratas…',
-                    images: [],
-                  },
-                },
-              },
-            },
-          },
+          200: { $ref: '#/components/responses/CharacterFound' },
           400: { $ref: '#/components/responses/BadRequest' },
           404: { $ref: '#/components/responses/NotFound' },
           500: { $ref: '#/components/responses/ServerError' },
@@ -165,7 +117,6 @@ almacenados en una base de datos Supabase (PostgreSQL).
       get: {
         tags: ['One Piece'],
         summary: 'Listar todos los personajes',
-        description: 'Retorna todos los personajes de One Piece ordenados por nombre.',
         operationId: 'listOnePiece',
         responses: {
           200: { $ref: '#/components/responses/CharacterList' },
@@ -179,33 +130,10 @@ almacenados en una base de datos Supabase (PostgreSQL).
       get: {
         tags: ['Saint Seiya'],
         summary: 'Buscar personaje por nombre',
-        description: 'Busca un personaje de Saint Seiya por nombre. La búsqueda es parcial y no distingue mayúsculas.',
         operationId: 'searchSaintSeiya',
         parameters: [{ $ref: '#/components/parameters/nameQuery' }],
         responses: {
-          200: {
-            description: 'Personaje encontrado',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/CharacterResponse' },
-                example: {
-                  success: true,
-                  data: {
-                    id: 15,
-                    series_slug: 'saint_seiya',
-                    series_name: 'Saint Seiya',
-                    name: 'Pegasus Seiya',
-                    age: '13',
-                    category: 'Caballero de Bronce — Armadura de Pegaso',
-                    power: 'Séptimo Sentido / Octavo Sentido',
-                    technique: 'Pegasus Meteor Fist / Pegasus Sui-sei Ken',
-                    description: 'Huérfano enviado al Santuario de Grecia…',
-                    images: [],
-                  },
-                },
-              },
-            },
-          },
+          200: { $ref: '#/components/responses/CharacterFound' },
           400: { $ref: '#/components/responses/BadRequest' },
           404: { $ref: '#/components/responses/NotFound' },
           500: { $ref: '#/components/responses/ServerError' },
@@ -216,7 +144,6 @@ almacenados en una base de datos Supabase (PostgreSQL).
       get: {
         tags: ['Saint Seiya'],
         summary: 'Listar todos los personajes',
-        description: 'Retorna todos los personajes de Saint Seiya ordenados por nombre.',
         operationId: 'listSaintSeiya',
         responses: {
           200: { $ref: '#/components/responses/CharacterList' },
@@ -230,33 +157,10 @@ almacenados en una base de datos Supabase (PostgreSQL).
       get: {
         tags: ['Hunter x Hunter'],
         summary: 'Buscar personaje por nombre',
-        description: 'Busca un personaje de Hunter x Hunter por nombre. La búsqueda es parcial y no distingue mayúsculas.',
         operationId: 'searchHunterXHunter',
         parameters: [{ $ref: '#/components/parameters/nameQuery' }],
         responses: {
-          200: {
-            description: 'Personaje encontrado',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/CharacterResponse' },
-                example: {
-                  success: true,
-                  data: {
-                    id: 26,
-                    series_slug: 'hunter_x_hunter',
-                    series_name: 'Hunter x Hunter',
-                    name: 'Killua Zoldyck',
-                    age: '12',
-                    category: 'Hunter — Ex-asesino del Clan Zoldyck',
-                    power: 'Nen — Transmutación: Godspeed / Electricidad',
-                    technique: 'Godspeed / Narukami (Thunder)',
-                    description: 'Criado desde la cuna como el asesino perfecto…',
-                    images: [],
-                  },
-                },
-              },
-            },
-          },
+          200: { $ref: '#/components/responses/CharacterFound' },
           400: { $ref: '#/components/responses/BadRequest' },
           404: { $ref: '#/components/responses/NotFound' },
           500: { $ref: '#/components/responses/ServerError' },
@@ -267,10 +171,120 @@ almacenados en una base de datos Supabase (PostgreSQL).
       get: {
         tags: ['Hunter x Hunter'],
         summary: 'Listar todos los personajes',
-        description: 'Retorna todos los personajes de Hunter x Hunter ordenados por nombre.',
         operationId: 'listHunterXHunter',
         responses: {
           200: { $ref: '#/components/responses/CharacterList' },
+          500: { $ref: '#/components/responses/ServerError' },
+        },
+      },
+    },
+
+    // ── /api/admin/series ─────────────────────────────────────────────────────
+    '/api/admin/series': {
+      get: {
+        tags: ['Admin'],
+        summary: 'Listar series (admin)',
+        description: 'Retorna todas las series. Requiere `x-admin-key`.',
+        operationId: 'adminListSeries',
+        security: [{ adminKey: [] }],
+        responses: {
+          200: {
+            description: 'Lista de series',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessEnvelope' },
+                    { properties: { data: { type: 'array', items: { $ref: '#/components/schemas/Series' } } } },
+                  ],
+                },
+              },
+            },
+          },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          500: { $ref: '#/components/responses/ServerError' },
+        },
+      },
+      post: {
+        tags: ['Admin'],
+        summary: 'Crear nueva serie',
+        description: 'Agrega una nueva serie de anime a la base de datos. Requiere `x-admin-key`.',
+        operationId: 'adminCreateSeries',
+        security: [{ adminKey: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CreateSeriesBody' },
+              example: {
+                slug: 'dragon_ball_z',
+                name: 'Dragon Ball Z',
+                description: 'Las aventuras de Goku y sus amigos.',
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Serie creada',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/SuccessEnvelope' },
+                    { properties: { data: { $ref: '#/components/schemas/Series' } } },
+                  ],
+                },
+              },
+            },
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          500: { $ref: '#/components/responses/ServerError' },
+        },
+      },
+    },
+
+    // ── /api/admin/characters ─────────────────────────────────────────────────
+    '/api/admin/characters': {
+      post: {
+        tags: ['Admin'],
+        summary: 'Crear nuevo personaje',
+        description: 'Agrega un personaje a una serie existente, con sus imágenes. Requiere `x-admin-key`.',
+        operationId: 'adminCreateCharacter',
+        security: [{ adminKey: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CreateCharacterBody' },
+              example: {
+                seriesSlug: 'one_piece',
+                name: 'Roronoa Zoro',
+                description: 'El primer oficial y espadachín de los Piratas de Sombrero de Paja.',
+                age: '21',
+                category: 'Primer Oficial — Piratas Sombrero de Paja',
+                power: 'Santoryu / Haki de Armadura',
+                technique: 'Oni Giri / Tora Gari',
+                images: [
+                  'https://cdn.example.com/zoro1.jpg',
+                  'https://cdn.example.com/zoro2.jpg',
+                ],
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Personaje creado con sus imágenes',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/CharacterResponse' },
+              },
+            },
+          },
+          400: { $ref: '#/components/responses/BadRequest' },
+          401: { $ref: '#/components/responses/Unauthorized' },
           500: { $ref: '#/components/responses/ServerError' },
         },
       },
@@ -279,6 +293,15 @@ almacenados en una base de datos Supabase (PostgreSQL).
 
   // ── Components ─────────────────────────────────────────────────────────────
   components: {
+
+    securitySchemes: {
+      adminKey: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-admin-key',
+        description: 'API key de administración. Configurada en la variable de entorno `ADMIN_API_KEY`.',
+      },
+    },
 
     parameters: {
       nameQuery: {
@@ -322,6 +345,50 @@ almacenados en una base de datos Supabase (PostgreSQL).
         },
       },
 
+      CreateSeriesBody: {
+        type: 'object',
+        required: ['slug', 'name'],
+        properties: {
+          slug: {
+            type: 'string',
+            description: 'Identificador único en snake_case o kebab-case (mínimo 2 caracteres).',
+            example: 'dragon_ball_z',
+          },
+          name: {
+            type: 'string',
+            description: 'Nombre legible de la serie.',
+            example: 'Dragon Ball Z',
+          },
+          description: {
+            type: 'string',
+            nullable: true,
+            description: 'Descripción opcional de la serie.',
+            example: 'Las aventuras de Goku.',
+          },
+        },
+      },
+
+      CreateCharacterBody: {
+        type: 'object',
+        required: ['seriesSlug', 'name'],
+        properties: {
+          seriesSlug:  { type: 'string', description: 'Slug de la serie destino.', example: 'one_piece' },
+          name:        { type: 'string', description: 'Nombre del personaje (mínimo 2 caracteres).', example: 'Roronoa Zoro' },
+          description: { type: 'string', nullable: true, example: 'Espadachín del equipo.' },
+          age:         { type: 'string', nullable: true, example: '21' },
+          category:    { type: 'string', nullable: true, example: 'Primer Oficial' },
+          power:       { type: 'string', nullable: true, example: 'Santoryu' },
+          technique:   { type: 'string', nullable: true, example: 'Oni Giri' },
+          images: {
+            type: 'array',
+            maxItems: 10,
+            items: { type: 'string', format: 'uri' },
+            description: 'URLs de imágenes del personaje (máximo 10).',
+            example: ['https://cdn.example.com/zoro.jpg'],
+          },
+        },
+      },
+
       SuccessEnvelope: {
         type: 'object',
         properties: {
@@ -332,12 +399,7 @@ almacenados en una base de datos Supabase (PostgreSQL).
       CharacterResponse: {
         allOf: [
           { $ref: '#/components/schemas/SuccessEnvelope' },
-          {
-            type: 'object',
-            properties: {
-              data: { $ref: '#/components/schemas/Character' },
-            },
-          },
+          { type: 'object', properties: { data: { $ref: '#/components/schemas/Character' } } },
         ],
       },
 
@@ -350,11 +412,11 @@ almacenados en una base de datos Supabase (PostgreSQL).
               data: {
                 type: 'object',
                 properties: {
-                  status:  { type: 'string', example: 'ok' },
-                  db:      { type: 'string', example: 'connected' },
+                  status:  { type: 'string',  example: 'ok' },
+                  db:      { type: 'string',  example: 'connected' },
                   series:  { type: 'integer', example: 3 },
-                  uptime:  { type: 'integer', description: 'Segundos desde que inició el proceso', example: 142 },
-                  ts:      { type: 'string', format: 'date-time', example: '2025-01-15T10:30:00.000Z' },
+                  uptime:  { type: 'integer', example: 142 },
+                  ts:      { type: 'string',  format: 'date-time', example: '2025-01-15T10:30:00.000Z' },
                 },
               },
             },
@@ -372,6 +434,14 @@ almacenados en una base de datos Supabase (PostgreSQL).
     },
 
     responses: {
+      CharacterFound: {
+        description: 'Personaje encontrado',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CharacterResponse' },
+          },
+        },
+      },
       CharacterList: {
         description: 'Lista de personajes de la serie',
         content: {
@@ -409,6 +479,15 @@ almacenados en una base de datos Supabase (PostgreSQL).
           },
         },
       },
+      Unauthorized: {
+        description: 'API key ausente o incorrecta',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorResponse' },
+            example: { success: false, error: 'No autorizado. API key inválida o ausente.' },
+          },
+        },
+      },
       ServerError: {
         description: 'Error interno del servidor',
         content: {
@@ -420,10 +499,8 @@ almacenados en una base de datos Supabase (PostgreSQL).
       },
     },
   },
-  };  // end of returned spec object
-}     // end of buildSpecWithServers
+  };
+}
 
-// Legacy export kept for any existing imports
 const spec = buildSpec();
-
 module.exports = { spec, buildSpec };

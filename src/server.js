@@ -1,5 +1,9 @@
 // src/server.js
 'use strict';
+const { adminRouter } = require('./routes/admin'); // importar
+
+// dentro del handler principal, ANTES del animeRouter:
+if (await adminRouter(req, res)) return;
 
 // ─── Load .env in local dev (ignored in production when vars are set via Render) ─
 const fs = require('fs');
